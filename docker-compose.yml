@@ -1,36 +1,17 @@
 version: "3.9"
 
 services:
-  db:
-    image: mysql:8.0
-    container_name: ccapi_db
-    env_file: [./enviroment/.env.db]   # 👈 path fixed
-    command: ["mysqld","--character-set-server=utf8mb4","--collation-server=utf8mb4_0900_ai_ci"]
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      # expand inside container; no Compose-time ${...}
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-    restart: unless-stopped
-
   api:
     build:
       context: .
-      dockerfile: dockerfile          # 👈 you named it 'dockerfile'
+      dockerfile: dockerfile        # adjust if your Dockerfile name/path differs
     container_name: ccapi_api
-    env_file: [./enviroment/.env.api] # 👈 path fixed
-    depends_on:
-      db:
-        condition: service_healthy
+    env_file: [./enviroment/.env.api]
     ports:
-      - "8080:8080"
+      - "8080:8080"                 # for localhost testing; use "127.0.0.1:8080:8080" if fronted by Nginx
     volumes:
       - api_cache:/app/cache
     restart: unless-stopped
 
 volumes:
-  mysql_data:
   api_cache:
