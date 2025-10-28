@@ -14,6 +14,24 @@ mod models;
 mod types;
 mod utils;
 
+
+async fn shutdown_signal() {
+    // SIGINT or SIGTERM for Docker
+    let ctrl_c = async {
+        tokio::signal::ctrl_c().await.ok();
+    };
+    #[cfg(unix)]
+    let terminate = async {
+        use tokio::signal::unix::{signal, SignalKind};
+        if let Ok(mut sig) = signal(SignalKind::terminate()) {
+            sig.recv().await;
+        }
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+    tokio::select! { _ = ctrl_c => {}, _ = terminate => {} }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     dotenv().ok();
@@ -33,6 +51,11 @@ async fn main() -> Result<(), anyhow::Error> {
     let listener = TcpListener::bind(addr).await?;
     info!("🚀 Listening on http://{addr}");
 
-    axum::serve(listener, app).await?;
+    // 🔴 This must be awaited; otherwise the program exits immediately
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
+
     Ok(())
 }
+

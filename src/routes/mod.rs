@@ -14,6 +14,7 @@ pub fn router(state: AppState) -> Router {
         .route("/status", get(status))
         .route("/countries/image", get(get_image))
         .route("/healthz", get(health)) // DB health check
+        .route("/", get(health)) // DB health check
         .with_state(state)
         .layer(TraceLayer::new_for_http())
 }

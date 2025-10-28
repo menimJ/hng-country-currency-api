@@ -1,26 +1,27 @@
 # ---------- Build stage ----------
-FROM rust:1.81-bookworm AS builder
+FROM rust:1.86 AS builder
 WORKDIR /app
 
-# Pre-copy manifests + migrations + assets so the sqlx macro and include_bytes! can see them
-COPY Cargo.toml Cargo.lock* ./
+# Copy manifests + migrations + assets first so sqlx::migrate! and include_bytes! can see them
+COPY Cargo.toml Cargo.lock ./
 COPY migrations ./migrations
 COPY assets ./assets
 
-# Prime the cargo cache
+# Prime cache
 RUN mkdir -p src && echo 'fn main(){}' > src/main.rs && cargo build --release || true
 
-# Now copy real source and build
+# Copy real sources and build (locked to Cargo.lock)
 COPY src ./src
-RUN cargo build --release
+RUN cargo build --release --locked
 
 # ---------- Runtime stage ----------
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app
 
-# Minimal runtime deps (TLS, timezone)
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tzdata \
-  && rm -rf /var/lib/apt/lists/*
+# Minimal runtime deps (CA + timezone). If you use native TLS, also add: libssl3
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy the binary
 COPY --from=builder /app/target/release/country-currency-api /usr/local/bin/country-currency-api
@@ -30,7 +31,7 @@ RUN mkdir -p /app/cache && \
     useradd -u 10001 -r -s /usr/sbin/nologin appuser && \
     chown -R appuser:appuser /app
 
-# Sensible defaults (override via Compose/ENV)
+# Sensible defaults (overridden by compose env_file)
 ENV RUST_LOG=info \
     PORT=8080 \
     SUMMARY_IMAGE_PATH=/app/cache/summary.png

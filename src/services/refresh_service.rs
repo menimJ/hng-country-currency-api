@@ -20,7 +20,7 @@ pub async fn refresh_cache(state: &AppState) -> Result<RefreshResult, ApiError> 
     let countries_url = env::var("COUNTRIES_URL").unwrap_or(default_countries);
 
     let base = env::var("BASE_CURRENCY").unwrap_or_else(|_| "USD".into());
-    let default_rates = format!("https://open-er-api.com/v6/latest/{}", base);
+    let default_rates = format!("https://open.er-api.com/v6/latest/{}", base);
     let rates_url = env::var("RATES_URL").unwrap_or(default_rates);
 
     let countries: Vec<RcCountry> = state

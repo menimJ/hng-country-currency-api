@@ -4,43 +4,29 @@ services:
   db:
     image: mysql:8.0
     container_name: ccapi_db
-    env_file:
-      - .env.docker
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"   # optional: expose DB to host
+    env_file: [./enviroment/.env.db]   # 👈 path fixed
+    command: ["mysqld","--character-set-server=utf8mb4","--collation-server=utf8mb4_0900_ai_ci"]
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      # expand inside container; no Compose-time ${...}
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD"]
       interval: 5s
       timeout: 3s
       retries: 20
     restart: unless-stopped
 
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: dockerfile          # 👈 you named it 'dockerfile'
     container_name: ccapi_api
-    env_file:
-      - .env.docker
-    environment:
-      PORT: "${API_PORT:-8080}"
-      RUST_LOG: "${RUST_LOG:-info}"
-      EXTERNAL_TIMEOUT_MS: "${EXTERNAL_TIMEOUT_MS:-12000}"
-      BASE_CURRENCY: "${BASE_CURRENCY:-USD}"
-      SUMMARY_IMAGE_PATH: "${SUMMARY_IMAGE_PATH:-cache/summary.png}"
-      # Build DATABASE_URL from DB vars (host is 'db' on the Docker network)
-      DATABASE_URL: "mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}"
+    env_file: [./enviroment/.env.api] # 👈 path fixed
     depends_on:
       db:
         condition: service_healthy
     ports:
-      - "${API_PORT:-8080}:8080"
+      - "8080:8080"
     volumes:
       - api_cache:/app/cache
     restart: unless-stopped
